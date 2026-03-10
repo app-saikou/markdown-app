@@ -1,0 +1,59 @@
+import { createClient } from '@supabase/supabase-js';
+import { GoogleSignin } from '@react-native-google-signin/google-signin';
+
+const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL ?? '';
+const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '';
+
+export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+const IOS_CLIENT_ID = '420933603880-839f2s8oteoi6hr8bdoruvpojm8r7nap.apps.googleusercontent.com';
+
+/** Google Sign-In を初期化する（アプリ起動時に呼ぶ） */
+export function configureGoogleSignIn(webClientId: string) {
+  GoogleSignin.configure({ webClientId, iosClientId: IOS_CLIENT_ID });
+}
+
+/** 匿名サインイン */
+export async function signInAnonymously(): Promise<void> {
+  const { error } = await supabase.auth.signInAnonymously();
+  if (error) throw error;
+}
+
+/** Googleサインイン（匿名ユーザーのデータを引き継ぐ） */
+export async function signInWithGoogle(): Promise<void> {
+  // 連携前の匿名ユーザーIDを記録
+  const { data: { session: prevSession } } = await supabase.auth.getSession();
+  const prevUserId = prevSession?.user?.is_anonymous ? prevSession.user.id : null;
+
+  await GoogleSignin.hasPlayServices();
+  const { data: googleData } = await GoogleSignin.signIn();
+  const idToken = googleData?.idToken;
+  if (!idToken) throw new Error('Google IDトークンが取得できませんでした。');
+
+  const { data, error } = await supabase.auth.signInWithIdToken({
+    provider: 'google',
+    token: idToken,
+  });
+  if (error) throw error;
+
+  // 匿名ユーザーのデータを新しいユーザーIDに移行
+  const newUserId = data.user?.id;
+  if (prevUserId && newUserId && prevUserId !== newUserId) {
+    await supabase.rpc('migrate_user_data', {
+      old_user_id: prevUserId,
+      new_user_id: newUserId,
+    });
+  }
+}
+
+/** サインアウト */
+export async function signOut(): Promise<void> {
+  await GoogleSignin.signOut().catch(() => {});
+  await supabase.auth.signOut();
+}
+
+/** 現在のセッションを取得 */
+export async function getSession() {
+  const { data: { session } } = await supabase.auth.getSession();
+  return session;
+}

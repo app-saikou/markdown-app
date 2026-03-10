@@ -1,0 +1,73 @@
+{
+  "expo": {
+    "name": "markdown-app",
+    "slug": "markdown-app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.y.konishi.markdown-app",
+      "infoPlist": {
+        "NSSpeechRecognitionUsageDescription": "音声をテキストに変換するために音声認識を使用します。",
+        "NSMicrophoneUsageDescription": "メモに音声入力するためにマイクを使用します。"
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.RECORD_AUDIO"
+      ],
+      "package": "com.y.konishi.markdownapp"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
+    },
+    "scheme": "markdown-app",
+    "plugins": [
+      "expo-router",
+      "expo-sharing",
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "メモに音声入力するためにマイクを使用します。",
+          "speechRecognitionPermission": "音声をテキストに変換するために音声認識を使用します。"
+        }
+      ],
+      [
+        "expo-tracking-transparency",
+        {
+          "userTrackingPermission": "広告のパーソナライズや利用状況の改善のために、トラッキングの許可をお願いします。"
+        }
+      ],
+      [
+        "react-native-google-mobile-ads",
+        {
+          "androidAppId": "ca-app-pub-3940256099942544~3347511713",
+          "iosAppId": "ca-app-pub-3940256099942544~1458002511"
+        }
+      ],
+      [
+        "@react-native-google-signin/google-signin",
+        {
+          "iosClientId": "420933603880-839f2s8oteoi6hr8bdoruvpojm8r7nap.apps.googleusercontent.com",
+          "iosUrlScheme": "com.googleusercontent.apps.420933603880-839f2s8oteoi6hr8bdoruvpojm8r7nap"
+        }
+      ]
+    ]
+  }
+}
