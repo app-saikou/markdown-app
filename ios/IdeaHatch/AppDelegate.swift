@@ -1,5 +1,4 @@
 internal import Expo
-import GoogleMobileAds
 import React
 import ReactAppDependencyProvider
 
@@ -14,9 +13,6 @@ class AppDelegate: ExpoAppDelegate {
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
   ) -> Bool {
-    // iOS 26 beta: AdMob と HermesVM のシグナルハンドラ競合を回避 (SDK v12以降はMobileAds.shared)
-    MobileAds.shared.disableSDKCrashReporting()
-
     let delegate = ReactNativeDelegate()
     let factory = ExpoReactNativeFactory(delegate: delegate)
     delegate.dependencyProvider = RCTAppDependencyProvider()
