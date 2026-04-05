@@ -12,6 +12,7 @@
 		BB2F792D24A3F905000567C9 /* Expo.plist in Resources */ = {isa = PBXBuildFile; fileRef = BB2F792C24A3F905000567C9 /* Expo.plist */; };
 		F11748422D0307B40044C1D9 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F11748412D0307B40044C1D9 /* AppDelegate.swift */; };
 		2CE5DFE12F364BF29C6E5AF6 /* noop-file.swift in Sources */ = {isa = PBXBuildFile; fileRef = 477D2F9AB11B442BA6FBB4E9 /* noop-file.swift */; };
+		A1B2C3D4E5F60001A1B2C3D4 /* AdMobCrashHelper.m in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60000A1B2C3D4 /* AdMobCrashHelper.m */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -23,6 +24,8 @@
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
 		F11748412D0307B40044C1D9 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = IdeaHatch/AppDelegate.swift; sourceTree = "<group>"; };
 		F11748442D0722820044C1D9 /* IdeaHatch-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = "IdeaHatch-Bridging-Header.h"; path = "IdeaHatch/IdeaHatch-Bridging-Header.h"; sourceTree = "<group>"; };
+		A1B2C3D4E5F60000A1B2C3D4 /* AdMobCrashHelper.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = AdMobCrashHelper.m; path = IdeaHatch/AdMobCrashHelper.m; sourceTree = "<group>"; };
+		A1B2C3D4E5F6FFFFA1B2C3D4 /* AdMobCrashHelper.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = AdMobCrashHelper.h; path = IdeaHatch/AdMobCrashHelper.h; sourceTree = "<group>"; };
 		477D2F9AB11B442BA6FBB4E9 /* noop-file.swift */ = {isa = PBXFileReference; name = "noop-file.swift"; path = "IdeaHatch/noop-file.swift"; sourceTree = "<group>"; fileEncoding = 4; lastKnownFileType = sourcecode.swift; explicitFileType = undefined; includeInIndex = 0; };
 /* End PBXFileReference section */
 
@@ -42,6 +45,8 @@
 			children = (
 				F11748412D0307B40044C1D9 /* AppDelegate.swift */,
 				F11748442D0722820044C1D9 /* IdeaHatch-Bridging-Header.h */,
+				A1B2C3D4E5F6FFFFA1B2C3D4 /* AdMobCrashHelper.h */,
+				A1B2C3D4E5F60000A1B2C3D4 /* AdMobCrashHelper.m */,
 				BB2F792B24A3F905000567C9 /* Supporting */,
 				13B07FB51A68108700A75B9A /* Images.xcassets */,
 				13B07FB61A68108700A75B9A /* Info.plist */,
@@ -234,6 +239,7 @@
 			files = (
 				F11748422D0307B40044C1D9 /* AppDelegate.swift in Sources */,
 				2CE5DFE12F364BF29C6E5AF6 /* noop-file.swift in Sources */,
+				A1B2C3D4E5F60001A1B2C3D4 /* AdMobCrashHelper.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
