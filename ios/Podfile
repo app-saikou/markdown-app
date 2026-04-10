@@ -61,5 +61,14 @@ target 'IdeaHatch' do
       :mac_catalyst_enabled => false,
       :ccache_enabled => ccache_enabled?(podfile_properties),
     )
+    # expo-modules-core requires Swift 6 syntax; suppress strict concurrency errors
+    installer.pods_project.targets.each do |target|
+      if target.name == 'ExpoModulesCore'
+        target.build_configurations.each do |config|
+          config.build_settings['SWIFT_VERSION'] = '6.0'
+          config.build_settings['OTHER_SWIFT_FLAGS'] = '$(inherited) -strict-concurrency=minimal'
+        end
+      end
+    end
   end
 end

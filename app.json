@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "markdown-app",
-    "slug": "markdown-app",
+    "name": "IdeaHatch",
+    "slug": "ideahatch",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -13,10 +13,14 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.y.konishi.markdown-app",
+      "bundleIdentifier": "com.y.konishi.ideahatch",
+
+      "usesAppleSignIn": true,
       "infoPlist": {
         "NSSpeechRecognitionUsageDescription": "音声をテキストに変換するために音声認識を使用します。",
-        "NSMicrophoneUsageDescription": "メモに音声入力するためにマイクを使用します。"
+        "NSMicrophoneUsageDescription": "メモに音声入力するためにマイクを使用します。",
+        "NSPhotoLibraryUsageDescription": "ノートにプロフィール画像を設定するために写真ライブラリへのアクセスが必要です。",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -29,16 +33,17 @@
       "predictiveBackGestureEnabled": false,
       "permissions": [
         "android.permission.RECORD_AUDIO",
-        "android.permission.RECORD_AUDIO"
+        "com.google.android.gms.permission.AD_ID"
       ],
-      "package": "com.y.konishi.markdownapp"
+      "package": "com.y.konishi.ideahatch"
     },
     "web": {
       "favicon": "./assets/favicon.png",
       "bundler": "metro"
     },
-    "scheme": "markdown-app",
+    "scheme": "ideahatch",
     "plugins": [
+      "expo-apple-authentication",
       "expo-router",
       "expo-sharing",
       [
@@ -55,19 +60,26 @@
         }
       ],
       [
-        "react-native-google-mobile-ads",
-        {
-          "androidAppId": "ca-app-pub-3940256099942544~3347511713",
-          "iosAppId": "ca-app-pub-3940256099942544~1458002511"
-        }
-      ],
-      [
         "@react-native-google-signin/google-signin",
         {
           "iosClientId": "420933603880-839f2s8oteoi6hr8bdoruvpojm8r7nap.apps.googleusercontent.com",
           "iosUrlScheme": "com.googleusercontent.apps.420933603880-839f2s8oteoi6hr8bdoruvpojm8r7nap"
         }
+      ],
+      "expo-build-properties",
+      [
+        "react-native-google-mobile-ads",
+        {
+          "androidAppId": "ca-app-pub-3940256099942544~3347511713",
+          "iosAppId": "ca-app-pub-2591881801621460~3422439174"
+        }
       ]
-    ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "81c72bf8-58f5-4706-87bc-945c37053754"
+      }
+    }
   }
 }
