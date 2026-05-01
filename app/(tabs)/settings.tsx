@@ -8,8 +8,10 @@ import {
   Alert,
   ActivityIndicator,
   Image,
+  Platform,
 } from 'react-native';
 import { router } from 'expo-router';
+import { Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import Svg, { Path } from 'react-native-svg';
@@ -25,7 +27,15 @@ function GoogleLogoNeutral({ size = 24 }: { size?: number; style?: object }) {
   );
 }
 import { useApp } from '../../src/contexts/AppContext';
-import { signInWithGoogle, signOut, getSession } from '../../src/lib/supabaseClient';
+import {
+  signInWithGoogle,
+  signInWithApple,
+  signOut,
+  deleteAccount,
+  getSession,
+  getProvider,
+  type AuthProvider,
+} from '../../src/lib/supabaseClient';
 import { useColors, AppColors, Typography, Spacing, Radius } from '../../src/constants/theme';
 import type { ColorScheme } from '../../src/types';
 
@@ -46,14 +56,18 @@ export default function SettingsScreen() {
   const colors = useColors();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [appleLoading, setAppleLoading] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [userAvatar, setUserAvatar] = useState<string | null>(null);
+  const [provider, setProvider] = useState<AuthProvider>('anonymous');
 
   useEffect(() => {
     getSession().then((session) => {
       setUserEmail(session?.user?.email ?? null);
       setUserAvatar(session?.user?.user_metadata?.avatar_url ?? null);
     });
+    getProvider().then(setProvider);
   }, [state.isAnonymous]);
 
   const handleGoogleLink = async () => {
@@ -66,6 +80,21 @@ export default function SettingsScreen() {
       Alert.alert('エラー', e instanceof Error ? e.message : '連携に失敗しました。');
     } finally {
       setGoogleLoading(false);
+    }
+  };
+
+  const handleAppleLink = async () => {
+    setAppleLoading(true);
+    try {
+      await signInWithApple();
+      await loadAll();
+      await getProvider().then(setProvider);
+      Alert.alert('完了', 'Appleアカウントと連携しました。');
+    } catch (e: unknown) {
+      if (e instanceof Error && (e as { code?: string }).code === 'ERR_CANCELED') return;
+      Alert.alert('エラー', e instanceof Error ? e.message : '連携に失敗しました。');
+    } finally {
+      setAppleLoading(false);
     }
   };
 
@@ -83,6 +112,31 @@ export default function SettingsScreen() {
     ]);
   };
 
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      'アカウントを削除',
+      'すべてのノートとアカウント情報が完全に削除されます。この操作は取り消せません。',
+      [
+        { text: 'キャンセル', style: 'cancel' },
+        {
+          text: '削除する',
+          style: 'destructive',
+          onPress: async () => {
+            setDeleteLoading(true);
+            try {
+              await deleteAccount();
+              router.replace('/login');
+            } catch (e) {
+              Alert.alert('エラー', e instanceof Error ? e.message : '削除に失敗しました。');
+            } finally {
+              setDeleteLoading(false);
+            }
+          },
+        },
+      ],
+    );
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <Text style={styles.largeTitle}>設定</Text>
@@ -91,23 +145,45 @@ export default function SettingsScreen() {
         {/* アカウント */}
         <Text style={styles.sectionLabel}>アカウント</Text>
         <View style={styles.group}>
-          {state.isAnonymous ? (
-            <TouchableOpacity
-              style={styles.row}
-              onPress={handleGoogleLink}
-              disabled={googleLoading}
-            >
-              <View style={styles.rowIcon}><GoogleLogoNeutral size={24} /></View>
-              <View style={styles.rowContent}>
-                <Text style={styles.rowLabel}>Googleアカウントと連携</Text>
-                <Text style={styles.rowSubLabel}>ゲストで使用中</Text>
-              </View>
-              {googleLoading
-                ? <ActivityIndicator size="small" color={colors.textTertiary} />
-                : <Ionicons name="chevron-forward" size={16} color={colors.textTertiary} />
-              }
-            </TouchableOpacity>
-          ) : (
+          {provider === 'anonymous' ? (
+            <>
+              <TouchableOpacity
+                style={styles.row}
+                onPress={handleGoogleLink}
+                disabled={googleLoading || appleLoading}
+              >
+                <View style={styles.rowIcon}><GoogleLogoNeutral size={24} /></View>
+                <View style={styles.rowContent}>
+                  <Text style={styles.rowLabel}>Googleアカウントと連携する</Text>
+                  <Text style={styles.rowSubLabel}>ゲストで使用中</Text>
+                </View>
+                {googleLoading
+                  ? <ActivityIndicator size="small" color={colors.textTertiary} />
+                  : <Ionicons name="chevron-forward" size={16} color={colors.textTertiary} />
+                }
+              </TouchableOpacity>
+              {Platform.OS === 'ios' && (
+                <>
+                  <View style={styles.separator} />
+                  <TouchableOpacity
+                    style={styles.row}
+                    onPress={handleAppleLink}
+                    disabled={googleLoading || appleLoading}
+                  >
+                    <Ionicons name="logo-apple" size={24} color={colors.textPrimary} style={styles.rowIcon} />
+                    <View style={styles.rowContent}>
+                      <Text style={styles.rowLabel}>Appleアカウントと連携する</Text>
+                      <Text style={styles.rowSubLabel}>ゲストで使用中</Text>
+                    </View>
+                    {appleLoading
+                      ? <ActivityIndicator size="small" color={colors.textTertiary} />
+                      : <Ionicons name="chevron-forward" size={16} color={colors.textTertiary} />
+                    }
+                  </TouchableOpacity>
+                </>
+              )}
+            </>
+          ) : provider === 'google' ? (
             <View style={styles.row}>
               {userAvatar ? (
                 <Image source={{ uri: userAvatar }} style={styles.avatar} />
@@ -117,6 +193,19 @@ export default function SettingsScreen() {
               <View style={styles.rowContent}>
                 <Text style={styles.rowLabel}>{userEmail ?? 'Googleアカウント'}</Text>
                 <Text style={styles.rowSubLabel}>Googleでログイン中</Text>
+              </View>
+              <Ionicons name="checkmark-circle" size={18} color={colors.primary} />
+            </View>
+          ) : (
+            <View style={styles.row}>
+              <Ionicons name="logo-apple" size={24} color={colors.textPrimary} style={styles.rowIcon} />
+              <View style={styles.rowContent}>
+                <Text style={styles.rowLabel}>
+                  {userEmail?.includes('privaterelay.appleid.com')
+                    ? 'メールアドレス非公開'
+                    : (userEmail ?? 'Appleアカウント')}
+                </Text>
+                <Text style={styles.rowSubLabel}>Appleでログイン中</Text>
               </View>
               <Ionicons name="checkmark-circle" size={18} color={colors.primary} />
             </View>
@@ -156,11 +245,32 @@ export default function SettingsScreen() {
           })}
         </View>
 
-        {/* サインアウト（独立グループ） */}
+        {/* 法的情報 */}
+        <Text style={styles.sectionLabel}>法的情報</Text>
+        <View style={styles.group}>
+          <TouchableOpacity
+            style={styles.row}
+            onPress={() => Linking.openURL('https://app-saikou.netlify.app/apps/ideahatch?lang=ja#privacy')}
+          >
+            <Ionicons name="shield-checkmark-outline" size={20} color={colors.textTertiary} style={styles.rowIcon} />
+            <Text style={styles.rowLabel}>プライバシーポリシー</Text>
+            <Ionicons name="open-outline" size={16} color={colors.textTertiary} />
+          </TouchableOpacity>
+        </View>
+
+        {/* サインアウト・アカウント削除（独立グループ） */}
         <View style={[styles.group, styles.groupDanger]}>
           <TouchableOpacity style={styles.row} onPress={handleSignOut}>
             <Ionicons name="log-out-outline" size={20} color={colors.textTertiary} style={styles.rowIcon} />
             <Text style={styles.rowLabel}>サインアウト</Text>
+          </TouchableOpacity>
+          <View style={styles.separator} />
+          <TouchableOpacity style={styles.row} onPress={handleDeleteAccount} disabled={deleteLoading}>
+            <Ionicons name="trash-outline" size={20} color="#EF4444" style={styles.rowIcon} />
+            {deleteLoading
+              ? <ActivityIndicator size="small" color="#EF4444" />
+              : <Text style={[styles.rowLabel, styles.rowLabelDanger]}>アカウントを削除</Text>
+            }
           </TouchableOpacity>
         </View>
 
@@ -249,6 +359,9 @@ const makeStyles = (colors: AppColors) => StyleSheet.create({
   rowSubLabel: {
     fontSize: Typography.sm,
     color: colors.textTertiary,
+  },
+  rowLabelDanger: {
+    color: '#EF4444',
   },
   separator: {
     height: StyleSheet.hairlineWidth,

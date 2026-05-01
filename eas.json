@@ -13,8 +13,9 @@
     },
     "production": {
       "autoIncrement": true,
+      "prebuildCommand": "expo prebuild --clean && node scripts/patch-admob.js && node scripts/patch-podfile.js",
       "ios": {
-        "image": "macos-sequoia-15.4-xcode-16.3"
+        "image": "latest"
       }
     }
   },

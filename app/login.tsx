@@ -6,12 +6,14 @@ import {
   StyleSheet,
   ActivityIndicator,
   Alert,
+  Platform,
 } from "react-native";
 import { router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Svg, { Path } from "react-native-svg";
+import { Ionicons } from "@expo/vector-icons";
 import { useApp } from "../src/contexts/AppContext";
-import { signInAnonymously, signInWithGoogle } from "../src/lib/supabaseClient";
+import { signInAnonymously, signInWithGoogle, signInWithApple } from "../src/lib/supabaseClient";
 import {
   useColors,
   AppColors,
@@ -70,7 +72,7 @@ export default function LoginScreen() {
   const { loadAll } = useApp();
   const colors = useColors();
   const styles = useMemo(() => makeStyles(colors), [colors]);
-  const [loading, setLoading] = useState<"google" | "guest" | null>(null);
+  const [loading, setLoading] = useState<"google" | "apple" | "guest" | null>(null);
 
   const handleGoogle = async () => {
     setLoading("google");
@@ -82,6 +84,24 @@ export default function LoginScreen() {
       Alert.alert(
         "エラー",
         e instanceof Error ? e.message : "Googleサインインに失敗しました。",
+      );
+    } finally {
+      setLoading(null);
+    }
+  };
+
+  const handleApple = async () => {
+    setLoading("apple");
+    try {
+      await signInWithApple();
+      await loadAll();
+      router.replace("/(tabs)");
+    } catch (e: unknown) {
+      // ERR_CANCELED はユーザーがキャンセルしただけなので無視
+      if (e instanceof Error && (e as { code?: string }).code === 'ERR_CANCELED') return;
+      Alert.alert(
+        "エラー",
+        e instanceof Error ? e.message : "Appleサインインに失敗しました。",
       );
     } finally {
       setLoading(null);
@@ -110,7 +130,7 @@ export default function LoginScreen() {
         <View style={styles.hero}>
           <HeroIcon color={colors.textSecondary} />
           <View style={styles.heroText}>
-            <Text style={styles.appName}>Markdown-App</Text>
+            <Text style={styles.appName}>IdeaHatch</Text>
             <Text style={styles.tagline}>雑なメモを、伝わる文書に。</Text>
           </View>
         </View>
@@ -133,6 +153,24 @@ export default function LoginScreen() {
               <Text style={styles.googleBtnText}>Googleでログイン</Text>
             </>
           </TouchableOpacity>
+
+          {Platform.OS === "ios" && (
+            <TouchableOpacity
+              style={styles.appleBtn}
+              onPress={handleApple}
+              disabled={loading !== null}
+              activeOpacity={0.8}
+            >
+              {loading === "apple" ? (
+                <ActivityIndicator color="#fff" size="small" />
+              ) : (
+                <>
+                  <Ionicons name="logo-apple" size={20} color="#fff" style={styles.appleBtnIcon} />
+                  <Text style={styles.appleBtnText}>Appleでログイン</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          )}
 
           <TouchableOpacity
             style={styles.guestBtn}
@@ -221,6 +259,22 @@ const makeStyles = (colors: AppColors) =>
       color: colors.textPrimary,
       marginLeft: 12,
       marginRight: 20,
+    },
+    appleBtn: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: "#000",
+      borderRadius: Radius.full,
+      height: 52,
+    },
+    appleBtnIcon: {
+      marginRight: 8,
+    },
+    appleBtnText: {
+      fontSize: Typography.base,
+      fontWeight: "600",
+      color: "#fff",
     },
     guestBtn: {
       alignItems: "center",

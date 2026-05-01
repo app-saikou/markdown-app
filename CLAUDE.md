@@ -1,4 +1,4 @@
-# 思考構造化アプリ (markdown-app)
+# IdeaHatch
 
 ## 概要
 
@@ -55,3 +55,7 @@ EXPO_PUBLIC_SUPABASE_ANON_KEY=
 - expo-router では `app/` ディレクトリがルーティングの基点
 - `@/*` は `src/*` へのパスエイリアス (tsconfig.json)
 - Supabase操作は常にtry-catchでエラーハンドリング
+
+## App Store 申請
+
+@docs/appstore-guide.md

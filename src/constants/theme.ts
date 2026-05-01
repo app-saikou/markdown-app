@@ -3,59 +3,57 @@ import { useColorScheme } from 'react-native';
 import type { ColorScheme } from '../types';
 
 export const LightColors = {
-  // iOS system blue
-  primary: '#007AFF',
-  primaryLight: '#E8F0FE',
-  primaryDark: '#0056CC',
+  primary: '#000000',
+  primaryLight: '#F0F0F0',
+  primaryDark: '#333333',
 
-  accent: '#FF9500',
-  accentLight: '#FFF3E0',
+  accent: '#5E5CE6',       // AI構造化専用インディゴ
+  accentLight: '#EEEEFF',
 
-  statusDraft: '#8E8E93',
-  statusStructured: '#007AFF',
-  statusExported: '#34C759',
+  statusDraft: '#A3A3A3',
+  statusStructured: '#5E5CE6',
+  statusExported: '#16A34A',
 
-  // iOS grouped background
-  background: '#F2F2F7',
+  background: '#F7F7F7',
   surface: '#FFFFFF',
-  surfaceSecondary: '#F2F2F7',
-  border: '#C6C6C8',
+  surfaceSecondary: '#F0F0F0',
+  border: '#E8E8E8',
 
-  textPrimary: '#000000',
-  textSecondary: '#3C3C43',
-  textTertiary: '#8E8E93',
+  textPrimary: '#0D0D0D',
+  textSecondary: '#525252',
+  textTertiary: '#A3A3A3',
   textOnPrimary: '#FFFFFF',
 
-  success: '#34C759',
-  warning: '#FF9500',
-  error: '#FF3B30',
+  success: '#16A34A',
+  warning: '#D97706',
+  error: '#DC2626',
 } as const;
 
 export const DarkColors = {
-  primary: '#0A84FF',
-  primaryLight: '#1C2F4A',
-  primaryDark: '#409CFF',
+  primary: '#FFFFFF',
+  primaryLight: '#252525',
+  primaryDark: '#E0E0E0',
 
-  accent: '#FF9F0A',
-  accentLight: '#3A2800',
+  accent: '#7B79F7',
+  accentLight: '#1A1940',
 
-  statusDraft: '#636366',
-  statusStructured: '#0A84FF',
-  statusExported: '#30D158',
+  statusDraft: '#6B6B6B',
+  statusStructured: '#7B79F7',
+  statusExported: '#22C55E',
 
-  background: '#000000',
-  surface: '#1C1C1E',
-  surfaceSecondary: '#2C2C2E',
-  border: '#38383A',
+  background: '#0C0C0C',
+  surface: '#1A1A1A',
+  surfaceSecondary: '#222222',
+  border: '#2C2C2C',
 
-  textPrimary: '#FFFFFF',
-  textSecondary: '#EBEBF5',
-  textTertiary: '#636366',
-  textOnPrimary: '#FFFFFF',
+  textPrimary: '#F2F2F2',
+  textSecondary: '#A3A3A3',
+  textTertiary: '#555555',
+  textOnPrimary: '#000000',
 
-  success: '#30D158',
-  warning: '#FF9F0A',
-  error: '#FF453A',
+  success: '#22C55E',
+  warning: '#F59E0B',
+  error: '#F87171',
 } as const;
 
 export const Colors = LightColors;
@@ -112,5 +110,6 @@ export const Radius = {
   sm: 8,
   md: 12,
   lg: 16,
+  xl: 20,
   full: 9999,
 } as const;

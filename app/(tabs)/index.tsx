@@ -26,14 +26,14 @@ type FilterValue = NoteStatus | 'all' | 'favorite';
 
 const STATUS_FILTERS: Array<{ label: string; value: FilterValue }> = [
   { label: 'すべて', value: 'all' },
-  { label: 'お気に入り', value: 'favorite' },
+  { label: 'ブックマーク', value: 'favorite' },
   { label: '下書き', value: 'draft' },
-  { label: '構造化済み', value: 'structured' },
-  { label: '出力済み', value: 'exported' },
+  { label: '整理済み', value: 'structured' },
+  { label: '共有済み', value: 'exported' },
 ];
 
 export default function NotesScreen() {
-  const { state, loadAll, createNote, toggleFavorite } = useApp();
+  const { state, loadAll, createNote, toggleFavorite, deleteNote } = useApp();
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<FilterValue>('all');
   const [tagFilter, setTagFilter] = useState<string | null>(null);
@@ -44,7 +44,6 @@ export default function NotesScreen() {
     loadAll();
   }, [loadAll]);
 
-  // 全ノートから重複なしのタグ一覧を収集
   const allTags = useMemo(() => {
     const set = new Set<string>();
     state.notes.forEach((n) => n.tags.forEach((t) => set.add(t)));
@@ -85,18 +84,11 @@ export default function NotesScreen() {
       {/* ヘッダー */}
       <View style={styles.header}>
         <Text style={styles.largeTitle}>ノート</Text>
-        <TouchableOpacity
-          style={styles.addBtn}
-          onPress={handleNewNote}
-          accessibilityLabel="新しいノートを作成"
-        >
-          <Ionicons name="add" size={28} color={colors.primary} />
-        </TouchableOpacity>
       </View>
 
       {/* 検索バー */}
       <View style={styles.searchBar}>
-        <Ionicons name="search" size={16} color={colors.textTertiary} />
+        <Ionicons name="search" size={15} color={colors.textTertiary} />
         <TextInput
           style={styles.searchInput}
           placeholder="検索"
@@ -106,7 +98,7 @@ export default function NotesScreen() {
         />
         {query.length > 0 && (
           <TouchableOpacity onPress={() => setQuery('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-            <Ionicons name="close-circle" size={16} color={colors.textTertiary} />
+            <Ionicons name="close-circle" size={15} color={colors.textTertiary} />
           </TouchableOpacity>
         )}
       </View>
@@ -158,26 +150,43 @@ export default function NotesScreen() {
       )}
 
       {/* リスト */}
+      <View style={filteredNotes.length > 0 ? styles.listGroup : styles.listGroupEmpty}>
       <FlatList
         data={filteredNotes}
         keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
+        renderItem={({ item, index }) => (
           <NoteCard
             note={item}
             onPress={() => router.push(`/note/${item.id}`)}
             onToggleFavorite={toggleFavorite}
+            onDelete={deleteNote}
+            showSeparator={index < filteredNotes.length - 1}
           />
         )}
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
+        style={styles.flatList}
         ListEmptyComponent={
           <View style={styles.empty}>
-            <Ionicons name="document-text-outline" size={48} color={colors.textTertiary} />
-            <Text style={styles.emptyTitle}>ノートがありません</Text>
-            <Text style={styles.emptyDesc}>右上の＋から追加できます</Text>
+            <View style={styles.emptyIcon}>
+              <Ionicons name="document-text-outline" size={32} color={colors.textTertiary} />
+            </View>
+            <Text style={styles.emptyTitle}>ノートなし</Text>
+            <Text style={styles.emptyDesc}>右下の＋から追加できます</Text>
           </View>
         }
       />
+      </View>
+
+      {/* FAB */}
+      <TouchableOpacity
+        style={styles.fab}
+        onPress={handleNewNote}
+        accessibilityLabel="新しいノートを作成"
+        activeOpacity={0.85}
+      >
+        <Ionicons name="add" size={28} color={colors.textOnPrimary} />
+      </TouchableOpacity>
 
       {/* バナー広告 */}
       <BannerAd
@@ -212,13 +221,23 @@ const makeStyles = (colors: AppColors) => StyleSheet.create({
     fontSize: Typography['3xl'],
     fontWeight: '700',
     color: colors.textPrimary,
-    letterSpacing: -0.5,
+    letterSpacing: -0.8,
   },
-  addBtn: {
-    width: 44,
-    height: 44,
+  fab: {
+    position: 'absolute',
+    right: Spacing.base,
+    bottom: 66,          // バナー広告（約50px）+ 余白
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 6,
   },
   searchBar: {
     flexDirection: 'row',
@@ -230,10 +249,8 @@ const makeStyles = (colors: AppColors) => StyleSheet.create({
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
     gap: Spacing.sm,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 2,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   searchInput: {
     flex: 1,
@@ -252,18 +269,17 @@ const makeStyles = (colors: AppColors) => StyleSheet.create({
   },
   filter: {
     paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.xs + 2,
+    paddingVertical: Spacing.xs + 1,
     borderRadius: Radius.full,
     backgroundColor: colors.surface,
-    minHeight: 32,
+    minHeight: 30,
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 2,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   filterActive: {
     backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   filterText: {
     fontSize: Typography.sm,
@@ -271,40 +287,62 @@ const makeStyles = (colors: AppColors) => StyleSheet.create({
     fontWeight: '500',
   },
   filterTextActive: {
-    color: '#FFFFFF',
+    color: colors.textOnPrimary,
     fontWeight: '600',
   },
+  listGroup: {
+    flex: 1,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
+  },
+  listGroupEmpty: {
+    flex: 1,
+  },
+  flatList: {
+    flex: 1,
+  },
   list: {
-    paddingTop: Spacing.xs,
-    paddingBottom: 40,
+    paddingBottom: 100,
   },
   empty: {
     alignItems: 'center',
     paddingTop: Spacing['3xl'],
     gap: Spacing.sm,
   },
+  emptyIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: Radius.xl,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: Spacing.xs,
+  },
   emptyTitle: {
     fontSize: Typography.lg,
     fontWeight: '600',
     color: colors.textPrimary,
-    marginTop: Spacing.sm,
   },
   emptyDesc: {
     fontSize: Typography.sm,
     color: colors.textTertiary,
   },
   tagFilter: {
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.xs,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 3,
     borderRadius: Radius.full,
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
-    minHeight: 28,
+    minHeight: 26,
     justifyContent: 'center',
   },
   tagFilterActive: {
-    backgroundColor: colors.primaryLight,
+    backgroundColor: colors.primary,
     borderColor: colors.primary,
   },
   tagFilterText: {
@@ -313,7 +351,7 @@ const makeStyles = (colors: AppColors) => StyleSheet.create({
     fontWeight: '500',
   },
   tagFilterTextActive: {
-    color: colors.primary,
+    color: colors.textOnPrimary,
     fontWeight: '600',
   },
 });

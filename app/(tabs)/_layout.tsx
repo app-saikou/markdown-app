@@ -7,11 +7,16 @@ export default function TabsLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: colors.primary,
+        tabBarActiveTintColor: colors.textPrimary,
         tabBarInactiveTintColor: colors.textTertiary,
         tabBarStyle: {
           backgroundColor: colors.surface,
           borderTopColor: colors.border,
+          borderTopWidth: 1,
+        },
+        tabBarLabelStyle: {
+          fontSize: 10,
+          fontWeight: '500',
         },
         headerShown: false,
       }}
@@ -20,10 +25,10 @@ export default function TabsLayout() {
         name="index"
         options={{
           title: 'ノート',
-          tabBarIcon: ({ color, size, focused }) => (
+          tabBarIcon: ({ color, focused }) => (
             <Ionicons
               name={focused ? 'document-text' : 'document-text-outline'}
-              size={size}
+              size={22}
               color={color}
             />
           ),
@@ -33,10 +38,10 @@ export default function TabsLayout() {
         name="settings"
         options={{
           title: '設定',
-          tabBarIcon: ({ color, size, focused }) => (
+          tabBarIcon: ({ color, focused }) => (
             <Ionicons
               name={focused ? 'settings' : 'settings-outline'}
-              size={size}
+              size={22}
               color={color}
             />
           ),

@@ -16,7 +16,6 @@ import {
   ScrollView,
   Alert,
   ActivityIndicator,
-  ActionSheetIOS,
 } from "react-native";
 import { router, Stack, useLocalSearchParams } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -47,6 +46,8 @@ import {
 
 type Mode = "edit" | "preview" | "original";
 
+const AI_CHAR_LIMIT = 2_000;
+
 // タスクリスト: react-native-markdown-display はHTMLチェックボックスを描画できないため
 // テキスト前処理でUnicodeに変換する
 function preprocessMarkdown(text: string): string {
@@ -58,7 +59,7 @@ function preprocessMarkdown(text: string): string {
 
 export default function NoteEditScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { state, updateNote, deleteNote } = useApp();
+  const { state, updateNote, toggleFavorite } = useApp();
   const [mode, setMode] = useState<Mode>("edit");
   const [content, setContent] = useState("");
   const [rawText, setRawText] = useState("");
@@ -76,6 +77,8 @@ export default function NoteEditScreen() {
   const [copied, setCopied] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
+  const [interimTranscript, setInterimTranscript] = useState("");
+  const lastStructureTimeRef = useRef<number>(0);
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { checkAndShowIfNeeded } = useInterstitialAd();
   const colors = useColors();
@@ -85,6 +88,11 @@ export default function NoteEditScreen() {
   const titleRef = useRef(title);
   const contentRef = useRef(content);
   const rawTextRef = useRef(rawText);
+  const modeRef = useRef(mode);
+  const editSelectionRef = useRef<{ start: number; end: number } | null>(null);
+  const rawSelectionRef = useRef<{ start: number; end: number } | null>(null);
+  const titleSelectionRef = useRef<{ start: number; end: number } | null>(null);
+  const focusedFieldRef = useRef<"title" | "content" | "raw">("content");
   useEffect(() => {
     titleRef.current = title;
   }, [title]);
@@ -94,6 +102,12 @@ export default function NoteEditScreen() {
   useEffect(() => {
     rawTextRef.current = rawText;
   }, [rawText]);
+  useEffect(() => {
+    modeRef.current = mode;
+    // モード切替時に音声入力のターゲットフィールドを同期
+    if (mode === "original") focusedFieldRef.current = "raw";
+    else if (mode === "edit") focusedFieldRef.current = "content";
+  }, [mode]);
 
   const note = state.notes.find((n) => n.id === id);
 
@@ -174,6 +188,16 @@ export default function NoteEditScreen() {
     (text: string) => {
       if (text.endsWith(" ") || text.endsWith(",") || text.endsWith("\n")) {
         const newTag = text.trim().replace(/,$/, "");
+        if (tags.length >= 10) {
+          showToast("タグは最大10個までです");
+          setTagInput("");
+          return;
+        }
+        if (newTag.length > 30) {
+          showToast("タグは30文字以内で入力してください");
+          setTagInput(newTag.slice(0, 30));
+          return;
+        }
         if (newTag && !tags.includes(newTag)) {
           const updated = [...tags, newTag];
           setTags(updated);
@@ -181,21 +205,30 @@ export default function NoteEditScreen() {
         }
         setTagInput("");
       } else {
-        setTagInput(text);
+        setTagInput(text.slice(0, 30));
       }
     },
-    [id, tags, updateNote],
+    [id, tags, updateNote, showToast],
   );
 
   const handleTagSubmit = useCallback(() => {
     const newTag = tagInput.trim();
+    if (tags.length >= 10) {
+      showToast("タグは最大10個までです");
+      setTagInput("");
+      return;
+    }
+    if (newTag.length > 30) {
+      showToast("タグは30文字以内で入力してください");
+      return;
+    }
     if (newTag && !tags.includes(newTag)) {
       const updated = [...tags, newTag];
       setTags(updated);
       updateNote(id, { tags: updated });
     }
     setTagInput("");
-  }, [id, tagInput, tags, updateNote]);
+  }, [id, tagInput, tags, updateNote, showToast]);
 
   const handleTagRemove = useCallback(
     (tag: string) => {
@@ -217,16 +250,49 @@ export default function NoteEditScreen() {
 
   // 音声認識イベント
   useSpeechRecognitionEvent("result", (event) => {
-    const transcript = event.results[0]?.transcript ?? "";
-    if (transcript) {
-      const updated = contentRef.current
-        ? contentRef.current + "\n" + transcript
-        : transcript;
-      handleContentChange(updated);
+    const result = event.results[0];
+    if (!result) return;
+    const transcript = result.transcript ?? "";
+    if (event.isFinal) {
+      // 確定テキスト → フォーカス中フィールドのカーソル位置に挿入（未設定なら末尾に追記）
+      setInterimTranscript("");
+      const field = focusedFieldRef.current;
+      if (field === "title") {
+        const base = titleRef.current;
+        const sel = titleSelectionRef.current;
+        const updated = sel
+          ? base.slice(0, sel.start) + transcript + base.slice(sel.end)
+          : base + transcript;
+        setTitle(updated);
+        updateNote(id, { title: updated || null });
+      } else if (field === "raw") {
+        const base = rawTextRef.current;
+        const sel = rawSelectionRef.current;
+        const updated = sel
+          ? base.slice(0, sel.start) + transcript + base.slice(sel.end)
+          : (base ? base + "\n" + transcript : transcript);
+        handleRawTextChange(updated);
+      } else {
+        const base = contentRef.current;
+        const sel = editSelectionRef.current;
+        const updated = sel
+          ? base.slice(0, sel.start) + transcript + base.slice(sel.end)
+          : (base ? base + "\n" + transcript : transcript);
+        handleContentChange(updated);
+      }
+    } else {
+      // 暫定テキスト → 別途表示（contentは変えない）
+      setInterimTranscript(transcript);
     }
   });
-  useSpeechRecognitionEvent("end", () => setIsRecording(false));
-  useSpeechRecognitionEvent("error", () => setIsRecording(false));
+  useSpeechRecognitionEvent("end", () => {
+    setIsRecording(false);
+    setInterimTranscript("");
+  });
+  useSpeechRecognitionEvent("error", () => {
+    setIsRecording(false);
+    setInterimTranscript("");
+  });
 
   const handleVoiceToggle = useCallback(async () => {
     if (isRecording) {
@@ -245,8 +311,8 @@ export default function NoteEditScreen() {
     setIsRecording(true);
     ExpoSpeechRecognitionModule.start({
       lang: "ja-JP",
-      interimResults: false,
-      continuous: false,
+      interimResults: true,
+      continuous: true,
     });
   }, [isRecording, handleContentChange]);
 
@@ -290,9 +356,24 @@ export default function NoteEditScreen() {
       Alert.alert("内容がありません", "テキストを入力してから実行してください。");
       return;
     }
+    // レート制限: 30秒に1回
+    const now = Date.now();
+    const elapsed = now - lastStructureTimeRef.current;
+    if (elapsed < 30_000 && lastStructureTimeRef.current !== 0) {
+      const remaining = Math.ceil((30_000 - elapsed) / 1000);
+      Alert.alert("少し待ってください", `あと${remaining}秒後に再度実行できます。`);
+      return;
+    }
+    // 文字数制限
+    const source = rawTextRef.current.trim() || contentRef.current;
+    if (source.length > AI_CHAR_LIMIT) {
+      Alert.alert("テキストが長すぎます", `${AI_CHAR_LIMIT}文字以内にしてください（現在${source.length}文字）。`);
+      return;
+    }
+    lastStructureTimeRef.current = now;
     setStructuringPhase("generating");
     try {
-      const questions = await generateContextQuestions(contentRef.current);
+      const questions = await generateContextQuestions(source);
       setStructuringPhase("idle");
       if (questions.length === 0) {
         await runAI([]);
@@ -324,33 +405,7 @@ export default function NoteEditScreen() {
     setShowContextModal(false);
   }, []);
 
-  const handleDelete = useCallback(() => {
-    Alert.alert("削除しますか？", "このノートを削除します。", [
-      { text: "キャンセル", style: "cancel" },
-      {
-        text: "削除",
-        style: "destructive",
-        onPress: async () => {
-          await deleteNote(id);
-          router.back();
-        },
-      },
-    ]);
-  }, [id, deleteNote]);
 
-  const handleMore = useCallback(() => {
-    ActionSheetIOS.showActionSheetWithOptions(
-      {
-        options: ["キャンセル", "共有", "削除"],
-        destructiveButtonIndex: 2,
-        cancelButtonIndex: 0,
-      },
-      (index) => {
-        if (index === 1) router.push(`/preview/${id}`);
-        if (index === 2) handleDelete();
-      },
-    );
-  }, [id, handleDelete]);
 
   return (
     <KeyboardAvoidingView
@@ -361,7 +416,18 @@ export default function NoteEditScreen() {
         options={{
           title: "",
           headerRight: () => (
-            <View style={{ flexDirection: "row", gap: 8 }}>
+            <View style={{ flexDirection: "row", gap: 20 }}>
+              <TouchableOpacity
+                onPress={() => note && toggleFavorite(note.id, !note.isFavorite)}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                accessibilityLabel="ブックマーク"
+              >
+                <Ionicons
+                  name={note?.isFavorite ? "bookmark" : "bookmark-outline"}
+                  size={22}
+                  color={note?.isFavorite ? colors.primary : colors.textSecondary}
+                />
+              </TouchableOpacity>
               <TouchableOpacity
                 onPress={handleCopyAll}
                 hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
@@ -374,12 +440,12 @@ export default function NoteEditScreen() {
                 />
               </TouchableOpacity>
               <TouchableOpacity
-                onPress={handleMore}
+                onPress={() => router.push(`/preview/${id}`)}
                 hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-                accessibilityLabel="その他の操作"
+                accessibilityLabel="共有"
               >
                 <Ionicons
-                  name="ellipsis-horizontal"
+                  name="share-outline"
                   size={22}
                   color={colors.textSecondary}
                 />
@@ -413,10 +479,18 @@ export default function NoteEditScreen() {
               placeholder="タイトル"
               placeholderTextColor={colors.textTertiary}
               value={title}
+              maxLength={100}
               onChangeText={setTitle}
-              onBlur={handleMetaSave}
+              onFocus={() => { focusedFieldRef.current = "title"; }}
+              onBlur={() => { focusedFieldRef.current = "content"; handleMetaSave(); }}
+              onSelectionChange={(e) => { titleSelectionRef.current = e.nativeEvent.selection; }}
               returnKeyType="done"
             />
+            {title.length >= 80 && (
+              <Text style={[styles.charCount, title.length >= 95 && styles.charCountWarn]}>
+                {title.length}/100
+              </Text>
+            )}
           </View>
           <View style={styles.tagsRow}>
             {tags.map((tag) => (
@@ -429,16 +503,23 @@ export default function NoteEditScreen() {
                 <Text style={styles.tagChipRemove}>×</Text>
               </TouchableOpacity>
             ))}
-            <TextInput
-              style={styles.tagInput}
-              placeholder="タグを追加"
-              placeholderTextColor={colors.textTertiary}
-              value={tagInput}
-              onChangeText={handleTagInputChange}
-              onSubmitEditing={handleTagSubmit}
-              returnKeyType="done"
-              blurOnSubmit={false}
-            />
+            {tags.length < 10 && (
+              <TextInput
+                style={styles.tagInput}
+                placeholder={tags.length >= 8 ? `タグを追加 (あと${10 - tags.length}個)` : "タグを追加"}
+                placeholderTextColor={colors.textTertiary}
+                value={tagInput}
+                onChangeText={handleTagInputChange}
+                onSubmitEditing={handleTagSubmit}
+                returnKeyType="done"
+                blurOnSubmit={false}
+              />
+            )}
+            {tagInput.length >= 20 && (
+              <Text style={[styles.charCount, tagInput.length >= 28 && styles.charCountWarn]}>
+                {tagInput.length}/30
+              </Text>
+            )}
           </View>
         </View>
 
@@ -505,12 +586,19 @@ export default function NoteEditScreen() {
               multiline
               value={content}
               onChangeText={handleContentChange}
+              onFocus={() => { focusedFieldRef.current = "content"; }}
+              onSelectionChange={(e) => { editSelectionRef.current = e.nativeEvent.selection; }}
               textAlignVertical="top"
               scrollEnabled
               placeholder="ここに書く"
               placeholderTextColor={colors.textTertiary}
               autoCorrect={false}
             />
+            {isRecording && interimTranscript !== "" && (
+              <View style={styles.interimBanner} pointerEvents="none">
+                <Text style={styles.interimText}>{interimTranscript}</Text>
+              </View>
+            )}
             <TouchableOpacity
               style={[styles.micBtn, isRecording && styles.micBtnActive]}
               onPress={handleVoiceToggle}
@@ -533,32 +621,73 @@ export default function NoteEditScreen() {
             </Markdown>
           </ScrollView>
         ) : (
-          <TextInput
-            style={styles.editor}
-            multiline
-            value={rawText}
-            onChangeText={handleRawTextChange}
-            textAlignVertical="top"
-            scrollEnabled
-            placeholder="元のテキスト"
-            placeholderTextColor={colors.textTertiary}
-            autoCorrect={false}
-          />
+          <View style={{ flex: 1 }}>
+            <TextInput
+              style={styles.editor}
+              multiline
+              value={rawText}
+              onChangeText={handleRawTextChange}
+              onFocus={() => { focusedFieldRef.current = "raw"; }}
+              onSelectionChange={(e) => { rawSelectionRef.current = e.nativeEvent.selection; }}
+              textAlignVertical="top"
+              scrollEnabled
+              placeholder="元のテキスト"
+              placeholderTextColor={colors.textTertiary}
+              autoCorrect={false}
+            />
+            {isRecording && interimTranscript !== "" && (
+              <View style={styles.interimBanner} pointerEvents="none">
+                <Text style={styles.interimText}>{interimTranscript}</Text>
+              </View>
+            )}
+            <TouchableOpacity
+              style={[styles.micBtn, isRecording && styles.micBtnActive]}
+              onPress={handleVoiceToggle}
+              accessibilityLabel={isRecording ? "録音を停止" : "音声入力を開始"}
+            >
+              <Ionicons
+                name={isRecording ? "stop-circle" : "mic"}
+                size={24}
+                color={isRecording ? "#FFFFFF" : colors.textSecondary}
+              />
+            </TouchableOpacity>
+          </View>
         )}
 
         {/* フッター */}
         <View style={styles.footer}>
+          {(() => {
+            // AIソースのタブを表示中のときだけカウンターを出す
+            const isAiSourceTab = rawText.trim() ? mode === "original" : mode === "edit";
+            if (!isAiSourceTab) return null;
+            const len = (rawText.trim() || content).length;
+            if (len < AI_CHAR_LIMIT * 0.6) return null;
+            const isOver = len > AI_CHAR_LIMIT;
+            const isWarn = len > AI_CHAR_LIMIT * 0.9;
+            return (
+              <Text style={[
+                styles.aiCharCount,
+                isWarn && styles.aiCharCountWarn,
+                isOver && styles.aiCharCountOver,
+              ]}>
+                {len.toLocaleString()} / {AI_CHAR_LIMIT.toLocaleString()}文字
+              </Text>
+            );
+          })()}
           <TouchableOpacity
-            style={[styles.structureBtn, structuringPhase !== "idle" && styles.btnDisabled]}
+            style={[
+              styles.structureBtn,
+              (structuringPhase !== "idle" || (rawText.trim() || content).length > AI_CHAR_LIMIT) && styles.btnDisabled,
+            ]}
             onPress={handleStructure}
-            disabled={structuringPhase !== "idle"}
+            disabled={structuringPhase !== "idle" || (rawText.trim() || content).length > AI_CHAR_LIMIT}
             activeOpacity={0.8}
           >
             {structuringPhase === "structuring" ? (
               <ActivityIndicator color="#FFFFFF" size="small" />
             ) : (
               <Text style={styles.structureBtnText}>
-                {structuringPhase === "generating" ? "質問を考えています..." : "構造化する"}
+                {structuringPhase === "generating" ? "質問を考えています..." : "✦  構造化する"}
               </Text>
             )}
           </TouchableOpacity>
@@ -660,6 +789,13 @@ const makeStyles = (colors: AppColors) =>
       minWidth: 80,
       flex: 1,
     },
+    charCount: {
+      fontSize: Typography.xs,
+      color: colors.textTertiary,
+    },
+    charCountWarn: {
+      color: colors.warning,
+    },
     toolbar: {
       flexDirection: "row",
       alignItems: "center",
@@ -708,13 +844,25 @@ const makeStyles = (colors: AppColors) =>
       borderTopColor: colors.border,
       gap: Spacing.xs,
     },
+    aiCharCount: {
+      fontSize: Typography.xs,
+      color: colors.textTertiary,
+      textAlign: "right",
+    },
+    aiCharCountWarn: {
+      color: colors.warning,
+    },
+    aiCharCountOver: {
+      color: colors.error,
+      fontWeight: "600",
+    },
     structureBtn: {
       alignItems: "center",
       justifyContent: "center",
       paddingVertical: Spacing.md,
-      borderRadius: Radius.md,
-      backgroundColor: colors.primary,
-      minHeight: 48,
+      borderRadius: Radius.lg,
+      backgroundColor: colors.accent,
+      minHeight: 50,
     },
     btnDisabled: {
       opacity: 0.5,
@@ -723,6 +871,23 @@ const makeStyles = (colors: AppColors) =>
       fontSize: Typography.base,
       fontWeight: "600",
       color: "#FFFFFF",
+    },
+    interimBanner: {
+      position: "absolute",
+      bottom: 72,
+      left: Spacing.base,
+      right: 72,
+      backgroundColor: colors.surfaceSecondary,
+      borderRadius: Radius.md,
+      paddingVertical: Spacing.sm,
+      paddingHorizontal: Spacing.md,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.border,
+    },
+    interimText: {
+      fontSize: Typography.sm,
+      color: colors.textTertiary,
+      fontStyle: "italic",
     },
     micBtn: {
       position: "absolute",
