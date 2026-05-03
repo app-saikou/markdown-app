@@ -13,7 +13,7 @@
     },
     "production": {
       "autoIncrement": true,
-      "prebuildCommand": "expo prebuild --clean && node scripts/patch-admob.js && node scripts/patch-podfile.js",
+      "prebuildCommand": "expo prebuild --clean && node scripts/patch-admob.js && node scripts/patch-podfile.js && node scripts/patch-turbomodule.js",
       "ios": {
         "image": "latest"
       }
