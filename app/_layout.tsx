@@ -66,17 +66,28 @@ async function initializeAds() {
   // iOS: ATT ダイアログを表示してトラッキング許可を求める
   // 拒否されても広告は表示される（requestNonPersonalizedAdsOnly: true で対応済み）
   if (Platform.OS === 'ios') {
-    await requestTrackingPermissionsAsync();
+    try {
+      await requestTrackingPermissionsAsync();
+    } catch {
+      // ATT 失敗は無視（非パーソナライズ広告で継続）
+    }
   }
 
   // AdMob SDK を初期化
-  await MobileAds().initialize();
+  // iOS 26 beta: initialize() が NSException を投げる場合がある。
+  // patch-turbomodule.js で performVoidMethodInvocation の @throw を swallow するが、
+  // JS 層でも防御的に try-catch する（Promise rejection として変換される場合の対処）。
+  try {
+    await MobileAds().initialize();
+  } catch {
+    // 初期化失敗は無視して続行（広告なしでアプリは動作する）
+  }
 }
 
 export default function RootLayout() {
   useEffect(() => {
     initializeAds().catch(() => {
-      // 初期化エラーは無視して続行（広告なしでアプリは動作する）
+      // 上記 try-catch で防御済みだが念のため catch する
     });
   }, []);
 
